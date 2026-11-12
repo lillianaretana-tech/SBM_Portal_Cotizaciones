@@ -75,7 +75,7 @@ if(error)throw Error(error.message);
 const {data:verified,error:verifyError}=await cloudClient.from('cotizaciones_detalles').select('id,clase,descripcion,cantidad,precio_unitario,datos_extra').eq('cotizacion_id',matched.id).order('orden').order('id');
 if(verifyError)throw Error('El guardado respondió, pero falló la verificación posterior: '+verifyError.message);
 if(!verified||verified.length!==payload.length)throw Error('El guardado no pudo verificarse: cantidad de líneas diferente.');
-for(let i=0;i<payload.length;i++){const a=payload[i],b=verified[i];if(a.clase!==b.clase||String(a.descripcion)!==String(b.descripcion)||Math.abs(num(a.cantidad)-num(b.cantidad))>0.000001||Math.abs(num(a.precio_unitario)-num(b.precio_unitario))>0.000001)throw Error('El guardado no coincide con la lectura de Supabase en la línea '+(i+1));}
+for(let i=0;i<payload.length;i++){const a=payload[i],b=verified[i];if(a.clase!==b.clase||String(a.descripcion)!==String(b.descripcion)||Math.abs(num(a.cantidad)-num(b.cantidad))>0.000001||Math.abs(num(a.precio_unitario)-num(b.precio_unitario))>0.000001||JSON.stringify(a.datos_extra||{})!==JSON.stringify(b.datos_extra||{}))throw Error('El guardado no coincide con la lectura de Supabase en la línea '+(i+1));}
 detailToken=verified.map(x=>x.id).join(',');original=matched;status('Guardadas y verificadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');if($('v29SaveFeedback'))$('v29SaveFeedback').textContent='Guardadas '+data+' líneas de '+number+' en Supabase.';
 $('cMessage').textContent='V29: detalles guardados de '+number+'. Revisa el Excel antes de enviarlo.';
 }
