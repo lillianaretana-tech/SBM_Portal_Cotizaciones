@@ -16,7 +16,7 @@ const sheets={};
 for(const sh of tags(book,'sheet')){
 const name=sh.getAttribute('name'),rid=sh.getAttributeNS(RNS,'id')||sh.getAttribute('r:id');let path=relation[rid];
 if(!path)continue;
-path=path.replace(/^\/+/,'');if(!path.startsWith('xl/'))path='xl/'+path;
+path=path.replace(/\\/g,'/');if(path.startsWith('/'))path=path.slice(1);else if(!path.startsWith('xl/'))path='xl/'+path;const parts=[];for(const segment of path.split('/')){if(segment==='..'){if(!parts.length)throw Error('Ruta Excel inválida');parts.pop()}else if(segment&&segment!=='.')parts.push(segment)}path=parts.join('/');
 const part=await get(path),cells={};
 for(const c of tags(part,'c')){
 const t=c.getAttribute('t'),raw=tags(c,'v')[0]?.textContent??'';
