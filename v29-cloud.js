@@ -47,17 +47,19 @@ if(!cloudUser||!cloudClient)throw Error('Inicia sesión');
 const fields=cSnapshot().fields;
 const number=fields.cNumber.trim();if(!number)throw Error('Indica consecutivo');
 const details=detailsFromSnapshot();if(!details.length)throw Error('No hay líneas para guardar');
-const matched=original&&normalize(original.consecutivo)===normalize(number)?original:null;
+let matched=original&&normalize(original.consecutivo)===normalize(number)?original:null;
+if(!matched){const {data:matches,error:matchError}=await cloudClient.from('cotizaciones_registros').select('id,consecutivo,version,bloqueado,precio_sin_iva').ilike('consecutivo',number).limit(20);if(matchError)throw Error(matchError.message);matched=(matches||[]).find(x=>normalize(x.consecutivo)===normalize(number))||null;}
+if(matched&&original&&original.id!==matched.id)throw Error('El consecutivo no corresponde al registro abierto.');
 if(matched&&matched.bloqueado)throw Error('Registro bloqueado; no se modificará');
-if(!matched)throw Error('Para proteger registros oficiales, primero selecciona una cotización existente de Supabase. No se creará ni sustituirá automáticamente.');
+if(!matched)throw Error('No existe ese consecutivo en Supabase. Primero regístralo por el flujo oficial; no se creará un registro duplicado.');
 if(!confirm('Guardar '+details.length+' líneas estructuradas de '+number+' en Supabase? Se conservará el registro y su importe oficial.'))return;
 const {data:latest,error:readError}=await cloudClient.from('cotizaciones_registros').select('version,bloqueado').eq('id',matched.id).single();
 if(readError)throw Error(readError.message);
-if(latest.bloqueado||latest.version!==matched.version)throw Error('Registro modificado o bloqueado en otro dispositivo. Vuelve a cargarlo.');
+if(latest.bloqueado||Number(latest.version)!==Number(matched.version))throw Error('Registro modificado o bloqueado en otro dispositivo. Vuelve a cargarlo.');
 const payload=details.map(x=>({...x,datos_extra:x.datos_extra||{}}));
 const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles',{p_cotizacion:matched.id,p_detalles:payload});
 if(error)throw Error(error.message);
-status('Guardadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');
+original=matched;status('Guardadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');
 $('cMessage').textContent='V29: detalles guardados de '+number+'. Revisa el Excel antes de enviarlo.';
 }
 async function importExcel(){
