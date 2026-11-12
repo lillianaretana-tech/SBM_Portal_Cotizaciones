@@ -48,12 +48,13 @@ if(!cloudUser||!cloudClient)throw Error('Inicia sesión');
 const fields=cSnapshot().fields;
 const number=fields.cNumber.trim();if(!number)throw Error('Indica consecutivo');
 const details=detailsFromSnapshot();if(!details.length)throw Error('No hay líneas para guardar');
+if(imported&&imported.formato==='COM-F-04'&&imported.labor.length&&details.filter(x=>x.clase==='mano_obra').length!==imported.labor.length)throw Error('No coinciden las líneas de mano de obra con el Excel importado. Revisa antes de guardar.');
 let matched=original&&normalize(original.consecutivo)===normalize(number)?original:null;
 if(!matched){const {data:matches,error:matchError}=await cloudClient.from('cotizaciones_registros').select('id,consecutivo,version,bloqueado,precio_sin_iva').ilike('consecutivo',number).limit(20);if(matchError)throw Error(matchError.message);matched=(matches||[]).find(x=>normalize(x.consecutivo)===normalize(number))||null;}
 if(matched&&original&&original.id!==matched.id)throw Error('El consecutivo no corresponde al registro abierto.');
 if(matched&&matched.bloqueado)throw Error('Registro bloqueado; no se modificará');
 if(!matched)throw Error('No existe ese consecutivo en Supabase. Primero regístralo por el flujo oficial; no se creará un registro duplicado.');
-if(!confirm('Guardar '+details.length+' líneas estructuradas de '+number+' en Supabase? Se conservará el registro y su importe oficial.'))return;
+if(!confirm('Guardar '+details.length+' líneas estructuradas de '+number+' en Supabase? Se conservará el registro y su importe oficial. El Excel regenerado requiere verificación antes de enviarse.'))return;
 const {data:latest,error:readError}=await cloudClient.from('cotizaciones_registros').select('version,bloqueado').eq('id',matched.id).single();
 if(readError)throw Error(readError.message);
 if(latest.bloqueado||Number(latest.version)!==Number(matched.version))throw Error('Registro modificado o bloqueado en otro dispositivo. Vuelve a cargarlo.');
