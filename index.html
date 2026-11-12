@@ -297,4 +297,36 @@ $('v28Save').onclick=async()=>{const c=current(),f=$('v28File').files[0];if(!c){
 $('v28Download').onclick=async()=>{const c=current();if(!c){state('Selecciona una cotización.');return}try{const obj=await transaction('readonly',st=>st.get(c.key));if(!obj){state('No hay Excel original asociado a esta cotización en este navegador.');return}const url=URL.createObjectURL(new Blob([obj.bytes],{type:obj.type}));const a=document.createElement('a');a.href=url;a.download=obj.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);state('Descarga solicitada: '+obj.name)}catch(e){state('No se pudo descargar: '+e.message)}};
 refresh();
 })();
+</script><script>
+// V29 - Laboratorio de recuperación: no modifica registros ni Supabase.
+(()=>{
+const panel=document.getElementById('v27ConsultPanel');if(!panel)return;
+const wrap=document.createElement('div');wrap.className='panel';wrap.innerHTML='<h3>V29 · Recuperar cotización desde Excel (prueba)</h3><p class="muted">Selecciona el Excel original para recuperar sus líneas y abrirlas en el generador. No guarda el archivo ni modifica los registros oficiales. Comprueba el importe antes de descargar.</p><input id="v29File" type="file" accept=".xlsx,.xlsm"><div class="actions"><button type="button" id="v29Read">Leer Excel y preparar edición</button></div><div id="v29Result" role="status" class="muted"></div>';panel.appendChild(wrap);
+const $=id=>document.getElementById(id),msg=s=>$('v29Result').textContent=s;
+$('v29Read').onclick=async()=>{
+const file=$('v29File').files[0];if(!file){msg('Selecciona un Excel.');return}
+try{
+if(!window.JSZip)throw Error('No está disponible JSZip.');
+const zip=await JSZip.loadAsync(file),p=new DOMParser(),ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+const parse=s=>p.parseFromString(s,'application/xml'),els=(r,t)=>[...r.getElementsByTagNameNS(ns,t)];
+const book=parse(await zip.file('xl/workbook.xml').async('string')),names=els(book,'sheet').map(e=>e.getAttribute('name')),index=names.indexOf('Cálculos')+1;
+if(!index)throw Error('No se encontró la hoja Cálculos.');
+const sf=zip.file('xl/sharedStrings.xml'),shared=sf?els(parse(await sf.async('string')),'si').map(e=>els(e,'t').map(t=>t.textContent).join('')):[];
+const sheet=parse(await zip.file('xl/worksheets/sheet'+index+'.xml').async('string')),cells={};
+for(const c of els(sheet,'c')){const t=c.getAttribute('t'),v=els(c,'v')[0]?.textContent||'';cells[c.getAttribute('r')]=t==='s'?(shared[Number(v)]||''):t==='inlineStr'?(els(c,'t').map(e=>e.textContent).join('')):v}
+const v=r=>String(cells[r]??''),num=r=>Number(v(r))||0;
+const lines=[];
+for(let row=14;row<=85;row++){const desc=v('D'+row).trim(),qty=num('H'+row),unit=num('J'+row);if(desc&&qty>0&&unit>0)lines.push({desc,qty,unit,row})}
+if(!lines.length)throw Error('No se encontraron líneas editables con descripción, cantidad y precio.');
+const type=names.some(n=>n.toLowerCase()==='sbm')?'labor':'simple';
+const dateSerial=num('D7'),date=dateSerial>30000?new Date(Date.UTC(1899,11,30)+dateSerial*86400000).toISOString().slice(0,10):new Date().toISOString().slice(0,10);
+const snapshot={fields:{cType:type,cNumber:v('O11'),cDate:date,cClient:v('D8'),cAddress:v('D9'),cSite:v('D10'),cDescription:v('I7'),cNotes:'',cHours:'0',cRate:'0'},items:lines.map(({desc,qty,unit})=>({desc,qty,unit}))};
+if(!confirm('Se cargarán '+lines.length+' líneas de '+v('O11')+' en el generador para revisión. Esto sustituye los campos que tengas abiertos, pero NO guarda ni modifica la cotización oficial. ¿Continuar?'))return;
+document.querySelector('[data-tab="crear"]')?.click();
+cRestore(snapshot);
+msg('Recuperadas '+lines.length+' líneas. Verifica importes, administración, impuestos, actividades y condiciones antes de generar. No se ha guardado nada.');
+$('cMessage').textContent='V29: importación de prueba de '+file.name+'. Revisa todos los cálculos. No modifica registros oficiales.';
+}catch(e){msg('No se pudo recuperar: '+e.message)}
+};
+})();
 </script></body></html>
