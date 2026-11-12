@@ -33,21 +33,11 @@ const materials=lines(laborMode?32:14,laborMode?45:43,'suministro');
 const labor=laborMode?lines(14,29,'mano_obra').map(x=>({...x,horas_totales:x.cantidad})):[];
 const overhead=laborMode?lines(48,58,'otro'):[];
 const serial=n('D7'),fecha=serial>30000&&serial<100000?new Date(Date.UTC(1899,11,30)+serial*86400000).toISOString().slice(0,10):'';
-const resumen=Object.keys(sheets).find(x=>x.toLowerCase().includes('cotizaci')&&x.toLowerCase().includes('resumen')&&!x.includes('
 const precio_cliente=laborMode?numeric(sheets['sbm']?.D11):n('M46');
 return {formato,numero:v('O11'),fecha,cliente:v('D8'),direccion:v('D9'),proyecto:v('D10'),descripcion:v('I7'),observaciones:v(laborMode?'D66':'D53'),emisor:n('F3'),materials,labor,overhead,
 subtotal_calculado:[...materials,...labor,...overhead].reduce((sum,x)=>sum+x.subtotal,0),
 costo_interno:n(laborMode?'M60':'M44'),precio_cliente,administracion:laborMode?0:n('M45'),total_original:laborMode?precio_cliente:n('M48'),iva:laborMode?0:n('M47'),
 advertencias:['Los valores calculados son una lectura del caché de Excel: verificar el resultado al regenerar',...(laborMode?['El precio comercial incluye cargos que no están reflejados en el costo directo de mano de obra']:[])]};
-}
-root.SBMV29Parser={read};
-})(window);
-));
-const precio_cliente=laborMode?numeric(sheets[resumen]?.O20):n('M46');
-return {formato,numero:v('O11'),fecha,cliente:v('D8'),direccion:v('D9'),proyecto:v('D10'),descripcion:v('I7'),observaciones:v(laborMode?'D66':'D53'),emisor:n('F3'),materials,labor,overhead,
-subtotal_calculado:[...materials,...labor,...overhead].reduce((sum,x)=>sum+x.subtotal,0),
-costo_interno:n(laborMode?'M60':'M44'),precio_cliente,administracion:laborMode?0:n('M45'),total_original:laborMode?precio_cliente:n('M48'),iva:laborMode?0:n('M47'),
-advertencias:['Los valores calculados son una lectura del caché de Excel: verificar el resultado al regenerar','El detalle de mano de obra COM-F-04 puede requerir información adicional sobre jornada y puesto']};
 }
 root.SBMV29Parser={read};
 })(window);
