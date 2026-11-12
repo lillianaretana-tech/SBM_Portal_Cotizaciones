@@ -39,7 +39,8 @@ const {data,error}=await cloudClient.from('cotizaciones_detalles').select('*').e
 if(error)throw Error(error.message);
 if(!data.length){status('El registro existe, pero no tiene detalles guardados. Importa su Excel original una vez para reconstruirlos; no se inventarán líneas.');return}
 if(!confirm('Abrir '+rec.consecutivo+' para edición local. No se modificará el registro oficial.'))return;
-original=rec;imported=null;retainedOther=data.filter(x=>x.clase==='otro');current={id:rec.id,version:rec.version};fillSnapshot(rec,data);show('crear');
+original=rec;imported=null;retainedOther=data.filter(x=>x.clase==='otro');
+const origen=data.find(x=>x.datos_extra?.v29_origen)?.datos_extra.v29_origen;if(origen)status('Origen '+origen.formato+' · precio comercial original ₡'+fmt(origen.precio_cliente)+' · costo interno ₡'+fmt(origen.costo_interno));current={id:rec.id,version:rec.version};fillSnapshot(rec,data);show('crear');
 $('cMessage').textContent='V29: recuperada '+rec.consecutivo+' desde Supabase ('+data.length+' líneas). Los cambios no se guardan automáticamente.';
 status('Recuperadas '+data.length+' líneas de '+rec.consecutivo+'.');
 }
@@ -58,7 +59,7 @@ if(!confirm('Guardar '+details.length+' líneas estructuradas de '+number+' en S
 const {data:latest,error:readError}=await cloudClient.from('cotizaciones_registros').select('version,bloqueado').eq('id',matched.id).single();
 if(readError)throw Error(readError.message);
 if(latest.bloqueado||Number(latest.version)!==Number(matched.version))throw Error('Registro modificado o bloqueado en otro dispositivo. Vuelve a cargarlo.');
-const payload=details.map(x=>({...x,datos_extra:x.datos_extra||{}}));
+const payload=details.map((x,i)=>({...x,datos_extra:{...(x.datos_extra||{}),...(i===0&&imported?{v29_origen:{formato:imported.formato,precio_cliente:imported.precio_cliente,costo_interno:imported.costo_interno,administracion:imported.administracion,iva:imported.iva,total_original:imported.total_original,subtotal_calculado:imported.subtotal_calculado}}:{})}}));
 const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles',{p_cotizacion:matched.id,p_detalles:payload});
 if(error)throw Error(error.message);
 original=matched;status('Guardadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');
