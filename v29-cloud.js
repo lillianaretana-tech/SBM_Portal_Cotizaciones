@@ -21,7 +21,7 @@ const fields={cType:labor?'labor':'simple',cNumber:record.consecutivo||'',cDate:
 const items=details.filter(x=>x.clase==='suministro').map(x=>({desc:x.descripcion,qty:x.cantidad,unit:x.precio_unitario}));
 cRestore({fields,items});
 const laborRows=details.filter(x=>x.clase==='mano_obra');
-if($('v21LaborRows'))$('v21LaborRows').innerHTML='';if(labor){for(const x of laborRows){const e=x.datos_extra||{};v21AddLabor({job:e.job??0,qty:e.qty??1,hours:e.hours??x.cantidad,rate:x.precio_unitario,hourType:e.hourType??0,shift:e.shift??0})}}
+if($('v21LaborRows'))$('v21LaborRows').innerHTML='';if(labor){for(const x of laborRows){const e=x.datos_extra||{};v21AddLabor({job:e.job??0,qty:e.qty??1,hours:e.hours??x.cantidad,rate:x.precio_unitario,hourType:e.hourType??0,shift:e.shift??0,originalDescription:x.descripcion})}}
 cRecalc();
 }
 async function refresh(){
@@ -76,7 +76,7 @@ const parsed=await window.SBMV29Parser.read(file);
 const snapshot={fields:{cType:parsed.formato==='COM-F-04'?'labor':'simple',cNumber:parsed.numero,cDate:parsed.fecha,cClient:parsed.cliente,cAddress:parsed.direccion,cSite:parsed.proyecto,cDescription:parsed.descripcion,cNotes:parsed.observaciones},items:parsed.materials.map(x=>({desc:x.descripcion,qty:x.cantidad,unit:x.precio_unitario}))};
 if(!confirm('Preparar '+parsed.formato+' con '+parsed.materials.length+' materiales y '+parsed.labor.length+' líneas de mano de obra. No se guardará todavía.'))return;
 original=null;current=null;retainedOther=[];retainedLabor=[];originalMetadata=null;imported=parsed;cRestore(snapshot);
-if($('v21LaborRows'))$('v21LaborRows').innerHTML='';if(parsed.formato==='COM-F-04'){for(const x of parsed.labor)v21AddLabor({qty:1,hours:x.horas_totales,rate:x.precio_unitario})}
+if($('v21LaborRows'))$('v21LaborRows').innerHTML='';if(parsed.formato==='COM-F-04'){for(const x of parsed.labor)v21AddLabor({qty:1,hours:x.horas_totales,rate:x.precio_unitario,originalDescription:x.descripcion})}
 show('crear');$('cMessage').textContent='V29: '+parsed.formato+' importado. Subtotal extraído ₡'+fmt(parsed.subtotal_calculado)+'. Verifica precio comercial, administración e IVA. No se ha guardado nada.';
 status('Importación local: '+parsed.numero+' · '+parsed.materials.length+' materiales · '+parsed.labor.length+' mano de obra. Precio original ₡'+fmt(parsed.precio_cliente)+'. Sin cambios en Supabase.');
 }
