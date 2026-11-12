@@ -3,6 +3,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 let current=null,original=null,imported=null,retainedOther=[],retainedLabor=[],originalMetadata=null;
+window.SBMV29Overhead=function(){return imported?.overhead||retainedOther||[]};
 window.SBMV29LaborName=function(i,jobName){const source=imported?.labor?.[i]||retainedLabor[i];return source?.descripcion||jobName};
 const status=t=>{$('v29CloudStatus').textContent=t};
 const num=x=>Number(x)||0;
