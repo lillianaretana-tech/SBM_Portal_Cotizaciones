@@ -37,7 +37,7 @@ $('v29CloudList')._records=data;status(data.length+' registros disponibles. Solo
 async function load(){
 const id=$('v29CloudList').value;if(!id)return;
 const rec=($('v29CloudList')._records||[]).find(x=>x.id===id);if(!rec)throw Error('Registro no disponible');
-const {data,error}=await cloudClient.from('cotizaciones_detalles').select('*').eq('cotizacion_id',id).order('orden');
+const {data,error}=await cloudClient.from('cotizaciones_detalles').select('*').eq('cotizacion_id',id).order('orden').order('id');
 if(error)throw Error(error.message);
 if(!data.length){status('El registro existe, pero no tiene detalles guardados. Importa su Excel original una vez para reconstruirlos; no se inventarán líneas.');return}
 if(!confirm('Abrir '+rec.consecutivo+' para edición local. No se modificará el registro oficial.'))return;
@@ -72,7 +72,7 @@ if(latest.bloqueado||Number(latest.version)!==Number(matched.version))throw Erro
 const payload=details.map((x,i)=>({...x,datos_extra:{...(x.datos_extra||{}),...(i===0&&(imported||originalMetadata)?{v29_origen:imported?{formato:imported.formato,precio_cliente:imported.precio_cliente,costo_interno:imported.costo_interno,administracion:imported.administracion,iva:imported.iva,total_original:imported.total_original,subtotal_calculado:imported.subtotal_calculado,direccion:imported.direccion,emisor:imported.emisor}:originalMetadata}:{})}}));
 const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles_seguro',{p_cotizacion:matched.id,p_detalles:payload,p_expected_ids:detailToken===null?'':detailToken});
 if(error)throw Error(error.message);
-const {data:verified,error:verifyError}=await cloudClient.from('cotizaciones_detalles').select('id,clase,descripcion,cantidad,precio_unitario,datos_extra').eq('cotizacion_id',matched.id).order('orden');
+const {data:verified,error:verifyError}=await cloudClient.from('cotizaciones_detalles').select('id,clase,descripcion,cantidad,precio_unitario,datos_extra').eq('cotizacion_id',matched.id).order('orden').order('id');
 if(verifyError)throw Error('El guardado respondió, pero falló la verificación posterior: '+verifyError.message);
 if(!verified||verified.length!==payload.length)throw Error('El guardado no pudo verificarse: cantidad de líneas diferente.');
 for(let i=0;i<payload.length;i++){const a=payload[i],b=verified[i];if(a.clase!==b.clase||String(a.descripcion)!==String(b.descripcion)||Math.abs(num(a.cantidad)-num(b.cantidad))>0.000001||Math.abs(num(a.precio_unitario)-num(b.precio_unitario))>0.000001)throw Error('El guardado no coincide con la lectura de Supabase en la línea '+(i+1));}
