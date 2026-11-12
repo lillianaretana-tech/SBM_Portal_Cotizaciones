@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-let current=null,original=null,imported=null,retainedOther=[],retainedLabor=[],originalMetadata=null;
+let current=null,original=null,imported=null,retainedOther=[],retainedLabor=[],originalMetadata=null,detailToken=null;
 window.SBMV29Overhead=function(){return imported?.overhead||retainedOther||[]};
 window.SBMV29LaborName=function(i,jobName){const source=imported?.labor?.[i]||retainedLabor[i];return source?.descripcion||jobName};
 const status=t=>{$('v29CloudStatus').textContent=t};
@@ -41,7 +41,7 @@ const {data,error}=await cloudClient.from('cotizaciones_detalles').select('*').e
 if(error)throw Error(error.message);
 if(!data.length){status('El registro existe, pero no tiene detalles guardados. Importa su Excel original una vez para reconstruirlos; no se inventarán líneas.');return}
 if(!confirm('Abrir '+rec.consecutivo+' para edición local. No se modificará el registro oficial.'))return;
-original=rec;imported=null;retainedOther=data.filter(x=>x.clase==='otro');retainedLabor=data.filter(x=>x.clase==='mano_obra');
+original=rec;detailToken=data.map(x=>x.id).join(',');imported=null;retainedOther=data.filter(x=>x.clase==='otro');retainedLabor=data.filter(x=>x.clase==='mano_obra');
 const origen=data.find(x=>x.datos_extra?.v29_origen)?.datos_extra.v29_origen;originalMetadata=origen||null;if(origen)status('Origen '+origen.formato+' · precio comercial original ₡'+fmt(origen.precio_cliente)+' · costo interno ₡'+fmt(origen.costo_interno));current={id:rec.id,version:rec.version};fillSnapshot(rec,data);if(origen?.emisor!==undefined&&$('v20Issuer'))$('v20Issuer').value=origen.emisor;show('crear');
 $('cMessage').textContent='V29: recuperada '+rec.consecutivo+' desde Supabase ('+data.length+' líneas). Los cambios no se guardan automáticamente.';
 const labor=data.some(x=>x.clase==='mano_obra');
@@ -69,13 +69,13 @@ const {data:latest,error:readError}=await cloudClient.from('cotizaciones_registr
 if(readError)throw Error(readError.message);
 if(latest.bloqueado||Number(latest.version)!==Number(matched.version))throw Error('Registro modificado o bloqueado en otro dispositivo. Vuelve a cargarlo.');
 const payload=details.map((x,i)=>({...x,datos_extra:{...(x.datos_extra||{}),...(i===0&&(imported||originalMetadata)?{v29_origen:imported?{formato:imported.formato,precio_cliente:imported.precio_cliente,costo_interno:imported.costo_interno,administracion:imported.administracion,iva:imported.iva,total_original:imported.total_original,subtotal_calculado:imported.subtotal_calculado,direccion:imported.direccion,emisor:imported.emisor}:originalMetadata}:{})}}));
-const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles',{p_cotizacion:matched.id,p_detalles:payload});
+const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles_seguro',{p_cotizacion:matched.id,p_detalles:payload,p_expected_ids:detailToken});
 if(error)throw Error(error.message);
-const {data:verified,error:verifyError}=await cloudClient.from('cotizaciones_detalles').select('clase,descripcion,cantidad,precio_unitario,datos_extra').eq('cotizacion_id',matched.id).order('orden');
+const {data:verified,error:verifyError}=await cloudClient.from('cotizaciones_detalles').select('id,clase,descripcion,cantidad,precio_unitario,datos_extra').eq('cotizacion_id',matched.id).order('orden');
 if(verifyError)throw Error('El guardado respondió, pero falló la verificación posterior: '+verifyError.message);
 if(!verified||verified.length!==payload.length)throw Error('El guardado no pudo verificarse: cantidad de líneas diferente.');
 for(let i=0;i<payload.length;i++){const a=payload[i],b=verified[i];if(a.clase!==b.clase||String(a.descripcion)!==String(b.descripcion)||Math.abs(num(a.cantidad)-num(b.cantidad))>0.000001||Math.abs(num(a.precio_unitario)-num(b.precio_unitario))>0.000001)throw Error('El guardado no coincide con la lectura de Supabase en la línea '+(i+1));}
-original=matched;status('Guardadas y verificadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');if($('v29SaveFeedback'))$('v29SaveFeedback').textContent='Guardadas '+data+' líneas de '+number+' en Supabase.';
+detailToken=verified.map(x=>x.id).join(',');original=matched;status('Guardadas y verificadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');if($('v29SaveFeedback'))$('v29SaveFeedback').textContent='Guardadas '+data+' líneas de '+number+' en Supabase.';
 $('cMessage').textContent='V29: detalles guardados de '+number+'. Revisa el Excel antes de enviarlo.';
 }
 async function importExcel(){
@@ -83,7 +83,7 @@ const file=$('v29File').files[0];if(!file)throw Error('Selecciona Excel original
 const parsed=await window.SBMV29Parser.read(file);
 const snapshot={fields:{cType:parsed.formato==='COM-F-04'?'labor':'simple',cNumber:parsed.numero,cDate:parsed.fecha,cClient:parsed.cliente,cAddress:parsed.direccion,cSite:parsed.proyecto,cDescription:parsed.descripcion,cNotes:parsed.observaciones},items:parsed.materials.map(x=>({desc:x.descripcion,qty:x.cantidad,unit:x.precio_unitario}))};
 if(!confirm('Preparar '+parsed.formato+' con '+parsed.materials.length+' materiales y '+parsed.labor.length+' líneas de mano de obra. No se guardará todavía.'))return;
-original=null;current=null;retainedOther=[];retainedLabor=[];originalMetadata=null;imported=parsed;cRestore(snapshot);if($('v20Issuer')&&Number.isFinite(Number(parsed.emisor)))$('v20Issuer').value=parsed.emisor;
+original=null;current=null;detailToken=null;retainedOther=[];retainedLabor=[];originalMetadata=null;imported=parsed;cRestore(snapshot);if($('v20Issuer')&&Number.isFinite(Number(parsed.emisor)))$('v20Issuer').value=parsed.emisor;
 if($('v21LaborRows'))$('v21LaborRows').innerHTML='';if(parsed.formato==='COM-F-04'){for(const x of parsed.labor)v21AddLabor({qty:1,hours:x.horas_totales,rate:x.precio_unitario,originalDescription:x.descripcion})}
 show('crear');$('cMessage').textContent='V29: '+parsed.formato+' importado. Subtotal extraído ₡'+fmt(parsed.subtotal_calculado)+'. Verifica precio comercial, administración e IVA. No se ha guardado nada.';
 status('Importación local: '+parsed.numero+' · '+parsed.materials.length+' materiales · '+parsed.labor.length+' mano de obra. Precio original ₡'+fmt(parsed.precio_cliente)+'. Sin cambios en Supabase.');
