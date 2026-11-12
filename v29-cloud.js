@@ -3,8 +3,8 @@
 'use strict';
 const $=id=>document.getElementById(id);
 let current=null,original=null,imported=null,retainedOther=[],retainedLabor=[],originalMetadata=null,detailToken=null;
-window.SBMV29Overhead=function(){return imported?.overhead||retainedOther||[]};
-window.SBMV29LaborName=function(i,jobName){const source=imported?.labor?.[i]||retainedLabor[i];return source?.descripcion||jobName};
+window.SBMV29Overhead=function(){const number=normalize($('cNumber')?.value);if(imported&&normalize(imported.numero)===number)return imported.overhead||[];if(original&&normalize(original.consecutivo)===number)return retainedOther||[];return []};
+window.SBMV29LaborName=function(i,jobName){const number=normalize($('cNumber')?.value);const source=imported&&normalize(imported.numero)===number?imported.labor?.[i]:original&&normalize(original.consecutivo)===number?retainedLabor[i]:null;return source?.descripcion||jobName};
 const status=t=>{$('v29CloudStatus').textContent=t};
 const num=x=>Number(x)||0;
 const fmt=n=>new Intl.NumberFormat('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
