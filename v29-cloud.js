@@ -64,12 +64,13 @@ if(imported&&matched&&num(matched.precio_sin_iva)>0&&Math.abs(num(matched.precio
 if(!imported&&originalMetadata){const format=originalMetadata.formato;if(format&&fields.cType!==(format==='COM-F-04'?'labor':'simple'))throw Error('El formato del Excel recuperado no puede cambiarse sin volver a importar el original.');}
 if(!imported&&originalMetadata){const expected=num(originalMetadata.subtotal_calculado??originalMetadata.costo_interno),actual=details.reduce((a,x)=>a+num(x.subtotal),0);if(expected>0&&Math.abs(expected-actual)>Math.max(0.05,expected*0.00001))throw Error('El costo de las líneas editadas difiere del original. No se guardarán importes distintos sin actualizar la cotización oficial.');}
 if(!matched)throw Error('No existe ese consecutivo en Supabase. Primero regístralo por el flujo oficial; no se creará un registro duplicado.');
+if(detailToken===null){const {data:existing,error:existingError}=await cloudClient.from('cotizaciones_detalles').select('id').eq('cotizacion_id',matched.id).limit(1);if(existingError)throw Error(existingError.message);if(existing?.length)throw Error('Esta cotización ya tiene detalles guardados. Ábrela desde Supabase antes de sobrescribirlos.');}
 if(!confirm('Guardar '+details.length+' líneas estructuradas de '+number+' en Supabase? Se conservará el registro y su importe oficial. El Excel regenerado requiere verificación antes de enviarse.'))return;
 const {data:latest,error:readError}=await cloudClient.from('cotizaciones_registros').select('version,bloqueado').eq('id',matched.id).single();
 if(readError)throw Error(readError.message);
 if(latest.bloqueado||Number(latest.version)!==Number(matched.version))throw Error('Registro modificado o bloqueado en otro dispositivo. Vuelve a cargarlo.');
 const payload=details.map((x,i)=>({...x,datos_extra:{...(x.datos_extra||{}),...(i===0&&(imported||originalMetadata)?{v29_origen:imported?{formato:imported.formato,precio_cliente:imported.precio_cliente,costo_interno:imported.costo_interno,administracion:imported.administracion,iva:imported.iva,total_original:imported.total_original,subtotal_calculado:imported.subtotal_calculado,direccion:imported.direccion,emisor:imported.emisor}:originalMetadata}:{})}}));
-const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles',{p_cotizacion:matched.id,p_detalles:payload});
+const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles_seguro',{p_cotizacion:matched.id,p_detalles:payload,p_expected_ids:detailToken===null?'':detailToken});
 if(error)throw Error(error.message);
 const {data:verified,error:verifyError}=await cloudClient.from('cotizaciones_detalles').select('id,clase,descripcion,cantidad,precio_unitario,datos_extra').eq('cotizacion_id',matched.id).order('orden');
 if(verifyError)throw Error('El guardado respondió, pero falló la verificación posterior: '+verifyError.message);
