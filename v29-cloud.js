@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-let current=null,original=null,imported=null;
+let current=null,original=null,imported=null,retainedOther=[];
 const status=t=>{$('v29CloudStatus').textContent=t};
 const num=x=>Number(x)||0;
 const fmt=n=>new Intl.NumberFormat('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
@@ -11,7 +11,7 @@ function detailsFromSnapshot(){
 const data=cSnapshot(),rows=(data.items||[]).filter(x=>String(x.desc||'').trim()&&num(x.qty)>0);
 const out=rows.map(x=>({clase:'suministro',descripcion:x.desc,cantidad:num(x.qty),precio_unitario:num(x.unit),subtotal:num(x.qty)*num(x.unit)}));
 if(data.fields.cType==='labor')for(const x of v21LaborRows())if(x.qty>0&&x.hours>0)out.push({clase:'mano_obra',descripcion:x.name,puesto:x.name,cantidad:x.qty*x.hours,precio_unitario:x.rate,subtotal:x.qty*x.hours*x.rate,datos_extra:{job:x.job,qty:x.qty,hours:x.hours,hourType:x.hourType,shift:x.shift}});
-if(imported&&normalize(imported.numero)===normalize(data.fields.cNumber)){for(const x of imported.overhead||[])out.push({clase:'otro',descripcion:x.descripcion,cantidad:x.cantidad,precio_unitario:x.precio_unitario,subtotal:x.subtotal,datos_extra:{fila_origen:x.fila_origen}})}
+if(imported&&normalize(imported.numero)===normalize(data.fields.cNumber)){for(const x of imported.overhead||[])out.push({clase:'otro',descripcion:x.descripcion,cantidad:x.cantidad,precio_unitario:x.precio_unitario,subtotal:x.subtotal,datos_extra:{fila_origen:x.fila_origen}})}else for(const x of retainedOther)out.push({clase:'otro',descripcion:x.descripcion,cantidad:num(x.cantidad),precio_unitario:num(x.precio_unitario),subtotal:num(x.subtotal),datos_extra:x.datos_extra||{}})
 return out;
 }
 function fillSnapshot(record,details){
@@ -39,7 +39,7 @@ const {data,error}=await cloudClient.from('cotizaciones_detalles').select('*').e
 if(error)throw Error(error.message);
 if(!data.length){status('El registro existe, pero no tiene detalles guardados. Importa su Excel original una vez para reconstruirlos; no se inventarán líneas.');return}
 if(!confirm('Abrir '+rec.consecutivo+' para edición local. No se modificará el registro oficial.'))return;
-original=rec;imported=null;current={id:rec.id,version:rec.version};fillSnapshot(rec,data);show('crear');
+original=rec;imported=null;retainedOther=data.filter(x=>x.clase==='otro');current={id:rec.id,version:rec.version};fillSnapshot(rec,data);show('crear');
 $('cMessage').textContent='V29: recuperada '+rec.consecutivo+' desde Supabase ('+data.length+' líneas). Los cambios no se guardan automáticamente.';
 status('Recuperadas '+data.length+' líneas de '+rec.consecutivo+'.');
 }
@@ -68,7 +68,7 @@ const file=$('v29File').files[0];if(!file)throw Error('Selecciona Excel original
 const parsed=await window.SBMV29Parser.read(file);
 const snapshot={fields:{cType:parsed.formato==='COM-F-04'?'labor':'simple',cNumber:parsed.numero,cDate:parsed.fecha,cClient:parsed.cliente,cAddress:parsed.direccion,cSite:parsed.proyecto,cDescription:parsed.descripcion,cNotes:parsed.observaciones},items:parsed.materials.map(x=>({desc:x.descripcion,qty:x.cantidad,unit:x.precio_unitario}))};
 if(!confirm('Preparar '+parsed.formato+' con '+parsed.materials.length+' materiales y '+parsed.labor.length+' líneas de mano de obra. No se guardará todavía.'))return;
-original=null;current=null;imported=parsed;cRestore(snapshot);
+original=null;current=null;retainedOther=[];imported=parsed;cRestore(snapshot);
 if($('v21LaborRows'))$('v21LaborRows').innerHTML='';if(parsed.formato==='COM-F-04'){for(const x of parsed.labor)v21AddLabor({qty:1,hours:x.horas_totales,rate:x.precio_unitario})}
 show('crear');$('cMessage').textContent='V29: '+parsed.formato+' importado. Subtotal extraído ₡'+fmt(parsed.subtotal_calculado)+'. Verifica precio comercial, administración e IVA. No se ha guardado nada.';
 status('Importación local: '+parsed.numero+' · '+parsed.materials.length+' materiales · '+parsed.labor.length+' mano de obra. Precio original ₡'+fmt(parsed.precio_cliente)+'. Sin cambios en Supabase.');
