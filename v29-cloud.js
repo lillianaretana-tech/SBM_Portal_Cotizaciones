@@ -68,7 +68,7 @@ const parsed=await window.SBMV29Parser.read(file);
 const snapshot={fields:{cType:parsed.formato==='COM-F-04'?'labor':'simple',cNumber:parsed.numero,cDate:parsed.fecha,cClient:parsed.cliente,cAddress:parsed.direccion,cSite:parsed.proyecto,cDescription:parsed.descripcion,cNotes:parsed.observaciones},items:parsed.materials.map(x=>({desc:x.descripcion,qty:x.cantidad,unit:x.precio_unitario}))};
 if(!confirm('Preparar '+parsed.formato+' con '+parsed.materials.length+' materiales y '+parsed.labor.length+' líneas de mano de obra. No se guardará todavía.'))return;
 original=null;current=null;cRestore(snapshot);
-if(parsed.labor.length){$('v21LaborRows').innerHTML='';for(const x of parsed.labor)v21AddLabor({qty:1,hours:x.horas_totales,rate:x.precio_unitario})}
+if(parsed.formato==='COM-F-04'){$('v21LaborRows').innerHTML='';for(const x of parsed.labor)v21AddLabor({qty:1,hours:x.horas_totales,rate:x.precio_unitario})}
 show('crear');$('cMessage').textContent='V29: '+parsed.formato+' importado. Subtotal extraído ₡'+fmt(parsed.subtotal_calculado)+'. Verifica precio comercial, administración e IVA. No se ha guardado nada.';
 status('Importación local: '+parsed.numero+' · '+parsed.materials.length+' materiales · '+parsed.labor.length+' mano de obra. Sin cambios en Supabase.');
 }
