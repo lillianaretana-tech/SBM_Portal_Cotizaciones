@@ -71,7 +71,11 @@ if(latest.bloqueado||Number(latest.version)!==Number(matched.version))throw Erro
 const payload=details.map((x,i)=>({...x,datos_extra:{...(x.datos_extra||{}),...(i===0&&(imported||originalMetadata)?{v29_origen:imported?{formato:imported.formato,precio_cliente:imported.precio_cliente,costo_interno:imported.costo_interno,administracion:imported.administracion,iva:imported.iva,total_original:imported.total_original,subtotal_calculado:imported.subtotal_calculado,direccion:imported.direccion,emisor:imported.emisor}:originalMetadata}:{})}}));
 const {data,error}=await cloudClient.rpc('cotizaciones_v29_guardar_detalles',{p_cotizacion:matched.id,p_detalles:payload});
 if(error)throw Error(error.message);
-original=matched;status('Guardadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');if($('v29SaveFeedback'))$('v29SaveFeedback').textContent='Guardadas '+data+' líneas de '+number+' en Supabase.';
+const {data:verified,error:verifyError}=await cloudClient.from('cotizaciones_detalles').select('clase,descripcion,cantidad,precio_unitario,datos_extra').eq('cotizacion_id',matched.id).order('orden');
+if(verifyError)throw Error('El guardado respondió, pero falló la verificación posterior: '+verifyError.message);
+if(!verified||verified.length!==payload.length)throw Error('El guardado no pudo verificarse: cantidad de líneas diferente.');
+for(let i=0;i<payload.length;i++){const a=payload[i],b=verified[i];if(a.clase!==b.clase||String(a.descripcion)!==String(b.descripcion)||Math.abs(num(a.cantidad)-num(b.cantidad))>0.000001||Math.abs(num(a.precio_unitario)-num(b.precio_unitario))>0.000001)throw Error('El guardado no coincide con la lectura de Supabase en la línea '+(i+1));}
+original=matched;status('Guardadas y verificadas '+data+' líneas en Supabase. El total y los datos oficiales no se modificaron.');if($('v29SaveFeedback'))$('v29SaveFeedback').textContent='Guardadas '+data+' líneas de '+number+' en Supabase.';
 $('cMessage').textContent='V29: detalles guardados de '+number+'. Revisa el Excel antes de enviarlo.';
 }
 async function importExcel(){
