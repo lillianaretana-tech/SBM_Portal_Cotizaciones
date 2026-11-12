@@ -50,6 +50,8 @@ const fields=cSnapshot().fields;
 const number=fields.cNumber.trim();if(!number)throw Error('Indica consecutivo');
 const details=detailsFromSnapshot();if(!details.length)throw Error('No hay líneas para guardar');
 if(imported&&imported.formato==='COM-F-04'&&imported.labor.length&&details.filter(x=>x.clase==='mano_obra').length!==imported.labor.length)throw Error('No coinciden las líneas de mano de obra con el Excel importado. Revisa antes de guardar.');
+if(imported&&normalize(imported.numero)!==normalize(number))throw Error('El consecutivo fue cambiado después de importar el Excel. Vuelve a importar el archivo correcto.');
+if(imported&&imported.formato==='COM-F-06'){const subtotal=details.filter(x=>x.clase==='suministro').reduce((a,x)=>a+x.subtotal,0);if(Math.abs(subtotal-imported.subtotal_calculado)>0.05)throw Error('El subtotal de suministros cambió respecto al Excel original. Para guardar una modificación de precio, registra primero la nueva cotización por el flujo oficial.');}
 let matched=original&&normalize(original.consecutivo)===normalize(number)?original:null;
 if(!matched){const {data:matches,error:matchError}=await cloudClient.from('cotizaciones_registros').select('id,consecutivo,version,bloqueado,precio_sin_iva').ilike('consecutivo',number).limit(20);if(matchError)throw Error(matchError.message);matched=(matches||[]).find(x=>normalize(x.consecutivo)===normalize(number))||null;}
 if(matched&&original&&original.id!==matched.id)throw Error('El consecutivo no corresponde al registro abierto.');
