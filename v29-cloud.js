@@ -43,7 +43,8 @@ if(!confirm('Abrir '+rec.consecutivo+' para edición local. No se modificará el
 original=rec;imported=null;retainedOther=data.filter(x=>x.clase==='otro');retainedLabor=data.filter(x=>x.clase==='mano_obra');
 const origen=data.find(x=>x.datos_extra?.v29_origen)?.datos_extra.v29_origen;originalMetadata=origen||null;if(origen)status('Origen '+origen.formato+' · precio comercial original ₡'+fmt(origen.precio_cliente)+' · costo interno ₡'+fmt(origen.costo_interno));current={id:rec.id,version:rec.version};fillSnapshot(rec,data);show('crear');
 $('cMessage').textContent='V29: recuperada '+rec.consecutivo+' desde Supabase ('+data.length+' líneas). Los cambios no se guardan automáticamente.';
-status('Recuperadas '+data.length+' líneas de '+rec.consecutivo+'.');
+const labor=data.some(x=>x.clase==='mano_obra');
+const alerts=[];if(labor&&rec.tipo!=='mano_obra')alerts.push('clasificación histórica distinta: el detalle contiene mano de obra');if(origen&&Math.abs(num(origen.precio_cliente)-num(rec.precio_sin_iva))>Math.max(1,num(rec.precio_sin_iva)*0.0001))alerts.push('precio original distinto del registro');if(origen&&num(origen.administracion)>0)alerts.push('administración original ₡'+fmt(origen.administracion)+' (verificar contra registro)');status('Recuperadas '+data.length+' líneas de '+rec.consecutivo+'.'+(alerts.length?' Atención: '+alerts.join('; ')+'.':''));
 }
 async function save(){
 if(!cloudUser||!cloudClient)throw Error('Inicia sesión');
